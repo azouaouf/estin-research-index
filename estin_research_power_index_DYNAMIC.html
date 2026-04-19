@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ESTIN Research Power Index 2020–2026</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;0,900;1,400;1,700&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ── CONFIGURATION ── Collez l'URL CSV de votre Google Sheet ici ── */
+/* (voir instructions dans le fichier Excel, onglet "Guide d'utilisation") */
+
+:root {
+  --gold:#B8860B;--gold-light:#D4A017;--gold-accent:#C9A84C;
+  --ink:#1A1A2E;--paper:#FAFAF7;--paper-warm:#F5F2EC;
+  --text-primary:#1C1C2E;--text-secondary:#4A4A6A;--text-muted:#8A8AA8;
+  --rule:#D8D4C8;--tier1:#B8860B;--tier2:#2E6DA4;--tier3:#2E7D52;
+  --cit-color:#2E6DA4;--h-color:#7B4EA6;--i10-color:#2E7D52;--ris-color:#B8860B;
+  --shadow-sm:0 1px 4px rgba(0,0,0,.06),0 2px 12px rgba(0,0,0,.04);
+  --shadow-md:0 4px 20px rgba(0,0,0,.08),0 1px 4px rgba(0,0,0,.04);
+  --shadow-lg:0 12px 40px rgba(0,0,0,.1),0 2px 8px rgba(0,0,0,.06);
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--paper);color:var(--text-primary);font-family:'DM Sans',sans-serif;overflow-x:hidden;}
+
+/* ── LOADING SCREEN ── */
+#loading-screen{
+  position:fixed;inset:0;background:var(--ink);z-index:9999;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;
+  transition:opacity .5s ease;
+}
+#loading-screen.hidden{opacity:0;pointer-events:none;}
+.loader-logo{font-family:'Playfair Display',serif;font-size:32px;font-weight:900;color:var(--gold-accent);letter-spacing:.1em;}
+.loader-logo span{color:rgba(255,255,255,.6);font-weight:300;}
+.loader-bar-wrap{width:280px;height:3px;background:rgba(255,255,255,.1);border-radius:2px;overflow:hidden;}
+.loader-bar{height:100%;background:linear-gradient(90deg,var(--gold),var(--gold-light));border-radius:2px;width:0%;transition:width .3s ease;}
+.loader-msg{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:rgba(255,255,255,.4);}
+
+/* ── ERROR BANNER ── */
+#error-banner{
+  display:none;background:#B71C1C;color:#fff;padding:14px 24px;
+  font-size:13px;text-align:center;position:sticky;top:0;z-index:100;
+}
+#error-banner a{color:#FFD54F;text-decoration:underline;}
+
+/* ── CONFIG BANNER ── */
+#config-banner{
+  display:none;background:#E65100;color:#fff;padding:14px 24px;
+  font-size:13px;text-align:center;position:sticky;top:0;z-index:100;
+}
+
+/* ── MASTHEAD ── */
+.masthead{background:var(--ink);padding:10px 60px;display:flex;align-items:center;justify-content:space-between;}
+.masthead-left{font-size:9px;font-weight:600;letter-spacing:.38em;text-transform:uppercase;color:var(--gold-accent);}
+.masthead-right{font-size:9px;font-weight:300;letter-spacing:.18em;text-transform:uppercase;color:rgba(255,255,255,.4);}
+.last-update{font-size:8px;letter-spacing:.15em;color:rgba(255,255,255,.3);margin-top:2px;}
+
+/* ── HEADER ── */
+.header-band{background:var(--paper-warm);border-bottom:3px solid var(--ink);padding:0 60px;}
+.header-inner{display:flex;align-items:stretch;border-left:4px solid var(--gold);}
+.header-logo-col{padding:28px 40px 28px 32px;border-right:1px solid var(--rule);display:flex;flex-direction:column;justify-content:center;}
+.logo-estin{font-family:'Playfair Display',serif;font-size:13px;font-weight:900;letter-spacing:.22em;text-transform:uppercase;color:var(--ink);}
+.logo-sub{font-size:8px;font-weight:500;letter-spacing:.3em;text-transform:uppercase;color:var(--text-muted);margin-top:3px;}
+.header-title-col{padding:32px 40px;flex:1;}
+.header-kicker{font-size:9px;font-weight:700;letter-spacing:.5em;text-transform:uppercase;color:var(--gold);margin-bottom:8px;}
+.header-title{font-family:'Playfair Display',serif;font-size:clamp(30px,4vw,54px);font-weight:900;line-height:.95;letter-spacing:-.02em;color:var(--ink);}
+.header-title em{color:var(--gold);font-style:italic;}
+.header-subtitle{font-family:'Cormorant Garamond',serif;font-size:17px;font-weight:400;font-style:italic;color:var(--text-secondary);margin-top:10px;}
+.header-stats-col{padding:28px 40px;display:flex;flex-direction:column;justify-content:center;border-left:1px solid var(--rule);}
+.stats-row{display:flex;gap:32px;flex-wrap:wrap;}
+.h-stat-n{font-family:'Playfair Display',serif;font-size:28px;font-weight:700;color:var(--gold);line-height:1;}
+.h-stat-l{font-size:8px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;color:var(--text-muted);margin-top:2px;}
+
+/* ── EDITORIAL ── */
+.editorial{background:var(--paper-warm);border-bottom:1px solid var(--rule);padding:40px 60px;}
+.editorial-inner{max-width:900px;margin:0 auto;display:grid;grid-template-columns:1fr 2fr;gap:48px;align-items:start;}
+.editorial-label{font-size:8px;font-weight:700;letter-spacing:.5em;text-transform:uppercase;color:var(--gold);margin-bottom:14px;}
+.editorial-pull{font-family:'Playfair Display',serif;font-size:21px;font-weight:700;line-height:1.3;color:var(--ink);border-left:3px solid var(--gold);padding-left:18px;}
+.editorial-body{font-family:'Cormorant Garamond',serif;font-size:16px;line-height:1.8;color:var(--text-secondary);}
+.editorial-body p{margin-bottom:14px;}
+.editorial-body p:last-child{margin-bottom:0;}
+.editorial-body strong{color:var(--ink);font-weight:600;}
+.editorial-byline{margin-top:20px;padding-top:16px;border-top:1px solid var(--rule);font-size:10px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:var(--text-muted);}
+
+/* ── FORMULA BAND ── */
+.formula-band{background:var(--ink);padding:14px 60px;display:flex;align-items:center;gap:28px;flex-wrap:wrap;}
+.formula-label{font-size:8px;font-weight:700;letter-spacing:.42em;text-transform:uppercase;color:var(--gold-accent);white-space:nowrap;}
+.formula-eq{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.f-term{display:flex;flex-direction:column;align-items:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:3px;padding:5px 12px;}
+.f-pct{font-size:14px;font-weight:800;line-height:1;}
+.f-name{font-size:7px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.45);margin-top:2px;}
+.f-term.ris .f-pct{color:#C9A84C;}.f-term.cit .f-pct{color:#7EB8D4;}.f-term.h .f-pct{color:#C090E0;}.f-term.i10 .f-pct{color:#80C898;}
+.f-op{font-size:14px;font-weight:300;color:rgba(255,255,255,.35);}
+.method-pills{display:flex;gap:6px;flex-wrap:wrap;margin-left:auto;}
+.method-pill{display:flex;align-items:center;gap:5px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:2px;padding:4px 9px;font-size:8px;font-weight:500;color:rgba(255,255,255,.6);}
+.method-pill .badge{background:var(--gold-accent);color:var(--ink);font-weight:800;font-size:8px;padding:1px 5px;border-radius:2px;}
+
+/* ── MAIN ── */
+.main{max-width:1440px;margin:0 auto;padding:0 56px 80px;}
+
+/* ── SECTION RULES ── */
+.tier-section{margin-top:52px;}
+.section-rule{display:flex;align-items:center;gap:18px;padding-bottom:16px;margin-bottom:28px;border-bottom:2px solid var(--ink);}
+.section-rule-line{flex:1;height:1px;background:var(--rule);}
+.tier-icon{font-size:20px;}
+.tier-name{font-family:'Playfair Display',serif;font-size:22px;font-weight:700;color:var(--ink);line-height:1;}
+.tier-sub{font-family:'Cormorant Garamond',serif;font-size:14px;font-style:italic;color:var(--text-muted);margin-top:2px;}
+.tier-badge{font-size:8px;font-weight:700;letter-spacing:.28em;text-transform:uppercase;padding:4px 12px;border-radius:2px;white-space:nowrap;}
+.tier-badge.g{background:rgba(184,134,11,.1);border:1px solid var(--gold);color:var(--gold);}
+.tier-badge.s{background:rgba(46,109,164,.08);border:1px solid var(--tier2);color:var(--tier2);}
+.tier-badge.b{background:rgba(46,125,82,.08);border:1px solid var(--tier3);color:var(--tier3);}
+
+/* ── CHAMPION ── */
+.champion{background:var(--paper-warm);border:1px solid var(--rule);border-top:3px solid var(--gold);border-radius:4px;padding:40px 48px;display:grid;grid-template-columns:90px 1fr auto;gap:36px;align-items:center;margin-bottom:14px;box-shadow:var(--shadow-lg);position:relative;overflow:hidden;}
+.champion::after{content:'';position:absolute;top:-40px;right:-40px;width:220px;height:220px;background:radial-gradient(circle,rgba(184,134,11,.06),transparent 70%);pointer-events:none;}
+.champ-rank{font-family:'Playfair Display',serif;font-size:64px;font-weight:900;line-height:1;color:rgba(184,134,11,.12);letter-spacing:-.04em;user-select:none;}
+.champ-name{font-family:'Playfair Display',serif;font-size:42px;font-weight:700;color:var(--ink);margin-bottom:5px;}
+.champ-tagline{font-family:'Cormorant Garamond',serif;font-size:16px;font-style:italic;color:var(--gold);margin-bottom:18px;}
+.pub-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;}
+.chip{font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:3px 8px;border-radius:2px;}
+.chip.a{background:rgba(184,134,11,.10);border:1px solid rgba(184,134,11,.35);color:var(--gold);}
+.chip.b{background:rgba(46,109,164,.08);border:1px solid rgba(46,109,164,.30);color:var(--tier2);}
+.chip.nc{background:rgba(120,120,140,.08);border:1px solid rgba(120,120,140,.20);color:var(--text-muted);}
+.chip.bc{background:rgba(46,125,82,.08);border:1px solid rgba(46,125,82,.25);color:var(--tier3);}
+.scholar-bar{display:flex;gap:24px;}
+.s-stat{display:flex;flex-direction:column;}
+.s-val{font-size:18px;font-weight:700;line-height:1;}
+.s-val.cit{color:var(--cit-color);}.s-val.h{color:var(--h-color);}.s-val.i10{color:var(--i10-color);}
+.s-lbl{font-size:8px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:var(--text-muted);margin-top:3px;}
+.score-block{text-align:right;}
+.score-label{font-size:8px;font-weight:700;letter-spacing:.36em;text-transform:uppercase;color:var(--text-muted);margin-bottom:5px;}
+.score-composite{font-family:'Playfair Display',serif;font-size:52px;font-weight:900;color:var(--gold);line-height:1;letter-spacing:-.02em;}
+.score-unit{font-size:11px;color:var(--text-muted);margin-top:3px;}
+.score-ris{font-size:11px;font-weight:500;color:rgba(184,134,11,.65);margin-top:6px;}
+.total-badge{display:inline-block;margin-top:10px;font-size:8px;font-weight:700;letter-spacing:.1em;color:var(--gold);background:rgba(184,134,11,.08);border:1px solid rgba(184,134,11,.25);padding:3px 10px;border-radius:2px;}
+
+/* ── ELITE GRID ── */
+.elite-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.elite-card{background:#fff;border:1px solid var(--rule);border-left:3px solid var(--gold);border-radius:4px;padding:22px 26px;display:grid;grid-template-columns:50px 1fr auto;gap:14px;align-items:start;box-shadow:var(--shadow-sm);transition:box-shadow .2s,border-color .2s;}
+.elite-card:hover{box-shadow:var(--shadow-md);border-color:rgba(184,134,11,.4);}
+.e-rank{font-family:'Playfair Display',serif;font-size:30px;font-weight:900;line-height:1;color:rgba(184,134,11,.18);}
+.e-name{font-family:'Playfair Display',serif;font-size:20px;font-weight:700;color:var(--ink);margin-bottom:4px;}
+.e-chips{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;}
+.e-scholar{display:flex;gap:14px;margin-top:6px;}
+.e-sv{font-size:13px;font-weight:700;}
+.e-sv.cit{color:var(--cit-color);}.e-sv.h{color:var(--h-color);}.e-sv.i10{color:var(--i10-color);}
+.e-sl{font-size:8px;color:var(--text-muted);letter-spacing:.1em;text-transform:uppercase;}
+.e-score-block{text-align:right;}
+.e-composite{font-family:'Playfair Display',serif;font-size:24px;font-weight:700;color:var(--gold);line-height:1;}
+.e-composite-sub{font-size:8px;letter-spacing:.18em;color:var(--text-muted);margin-top:2px;}
+.e-ris{font-size:9px;color:rgba(184,134,11,.65);margin-top:3px;}
+
+/* ── ACHIEVERS ── */
+.achievers-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.achiever-card{background:#fff;border:1px solid var(--rule);border-left:2px solid var(--tier2);border-radius:4px;padding:15px 20px;display:grid;grid-template-columns:40px 1fr auto;gap:12px;align-items:center;box-shadow:var(--shadow-sm);}
+.achiever-card:hover{box-shadow:var(--shadow-md);}
+.ac-rank{font-family:'Playfair Display',serif;font-size:24px;font-weight:700;color:rgba(46,109,164,.25);}
+.ac-name{font-family:'Playfair Display',serif;font-size:16px;font-weight:600;color:var(--ink);margin-bottom:3px;}
+.ac-detail{font-size:9px;color:var(--text-muted);}
+.ac-score{font-family:'Playfair Display',serif;font-size:19px;font-weight:700;color:var(--tier2);text-align:right;}
+.ac-score-sub{font-size:7px;color:var(--text-muted);text-align:right;letter-spacing:.15em;}
+
+/* ── RISING ── */
+.rising-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+.rising-card{background:#fff;border:1px solid var(--rule);border-left:2px solid rgba(46,125,82,.4);border-radius:4px;padding:13px 15px;display:flex;align-items:center;gap:10px;box-shadow:var(--shadow-sm);}
+.rising-card:hover{box-shadow:var(--shadow-md);}
+.r-rank{font-size:12px;font-weight:700;color:rgba(46,125,82,.4);min-width:26px;}
+.r-info{flex:1;}
+.r-name{font-family:'Playfair Display',serif;font-size:13px;font-weight:600;color:var(--ink);margin-bottom:2px;}
+.r-detail{font-size:8px;color:var(--text-muted);letter-spacing:.06em;text-transform:uppercase;}
+.r-score{font-size:14px;font-weight:700;color:var(--tier3);white-space:nowrap;}
+
+/* ── FULL TABLE ── */
+.full-table-wrap{margin-top:56px;border:1px solid var(--rule);border-top:2px solid var(--ink);border-radius:4px;overflow:hidden;box-shadow:var(--shadow-md);}
+.table-head-strip{background:var(--ink);padding:16px 28px;display:flex;align-items:center;justify-content:space-between;}
+.table-head-title{font-family:'Playfair Display',serif;font-size:16px;font-weight:700;color:#fff;}
+.table-head-sub{font-size:8px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:rgba(255,255,255,.4);margin-top:2px;}
+.legend{display:flex;gap:14px;}
+.legend-item{display:flex;align-items:center;gap:5px;font-size:8px;color:rgba(255,255,255,.5);}
+.legend-dot{width:7px;height:7px;border-radius:50%;}
+table{width:100%;border-collapse:collapse;}
+thead th{background:var(--paper-warm);padding:10px 14px;font-size:8px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;color:var(--text-muted);text-align:left;border-bottom:1px solid var(--rule);}
+th.rc,td.rc{text-align:center;}th.rr,td.rr{text-align:right;}
+tbody tr{border-bottom:1px solid var(--rule);transition:background .12s;}
+tbody tr:nth-child(even){background:var(--paper-warm);}
+tbody tr:hover{background:rgba(184,134,11,.04);}
+tbody td{padding:10px 14px;font-size:11px;color:var(--text-primary);vertical-align:middle;}
+.td-rank{font-weight:700;font-size:11px;color:var(--text-muted);}
+.td-name{font-family:'Playfair Display',serif;font-size:14px;font-weight:600;}
+.td-composite{font-family:'Playfair Display',serif;font-size:15px;font-weight:700;color:var(--gold);text-align:right;}
+.td-ris{color:var(--ris-color);font-weight:600;text-align:right;}
+.td-cit{color:var(--cit-color);text-align:right;}
+.td-h{color:var(--h-color);text-align:center;font-weight:600;}
+.td-i10{color:var(--i10-color);text-align:center;font-weight:600;}
+.td-pubs{text-align:center;font-weight:600;color:var(--text-secondary);}
+.td-a{color:var(--gold);font-weight:700;text-align:center;}
+.bar-cell{width:90px;}
+.bar-track{height:3px;background:var(--rule);border-radius:2px;overflow:hidden;}
+.bar-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--gold),var(--gold-light));}
+.medal{font-size:12px;margin-right:3px;}
+.tier-dot{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:6px;vertical-align:middle;}
+.tier-dot.t1{background:var(--tier1);}.tier-dot.t2{background:var(--tier2);}.tier-dot.t3{background:var(--tier3);}.tier-dot.t4{background:#bbb;}
+
+/* ── FOOTER ── */
+.footer{background:var(--ink);padding:36px 60px;display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:60px;}
+.footer-logo{font-family:'Playfair Display',serif;font-size:19px;font-weight:900;color:var(--gold-accent);letter-spacing:.06em;}
+.footer-logo span{color:rgba(255,255,255,.65);font-weight:300;}
+.footer-tagline{font-size:8px;letter-spacing:.32em;text-transform:uppercase;color:rgba(255,255,255,.35);}
+
+@media(max-width:960px){
+  .masthead,.header-band,.editorial,.formula-band,.footer{padding-left:20px;padding-right:20px;}
+  .editorial-inner{grid-template-columns:1fr;gap:20px;}
+  .main{padding:0 18px 60px;}
+  .header-inner{flex-direction:column;}
+  .header-logo-col,.header-stats-col{border:none;border-top:1px solid var(--rule);}
+  .champion{grid-template-columns:1fr;padding:26px 22px;}
+  .champ-rank{display:none;}.score-block{text-align:left;}
+  .elite-grid,.achievers-grid{grid-template-columns:1fr;}
+  .rising-grid{grid-template-columns:1fr 1fr;}
+  .footer{grid-template-columns:1fr;}
+  .stats-row{flex-wrap:wrap;gap:20px;}
+}
+</style>
+</head>
+<body>
+
+<!-- ══ LOADING SCREEN ══ -->
+<div id="loading-screen">
+  <div class="loader-logo">ESTIN <span>Research</span></div>
+  <div class="loader-bar-wrap"><div class="loader-bar" id="loader-bar"></div></div>
+  <div class="loader-msg" id="loader-msg">Chargement des données…</div>
+</div>
+
+<!-- ══ BANNERS ══ -->
+<div id="config-banner">
+  ⚙️ &nbsp;<strong>Configuration requise</strong> — Collez l'URL CSV de votre Google Sheet dans la variable <code>SHEET_CSV_URL</code> (ligne 1 du script).
+  Voir les instructions dans l'onglet "Guide d'utilisation" du fichier Excel.
+</div>
+<div id="error-banner">
+  ⚠️ &nbsp;Impossible de charger les données depuis Google Sheets. Vérifiez que le Sheet est bien publié en CSV.
+  <a href="#" onclick="location.reload()">Réessayer</a>
+</div>
+
+<!-- ══ MASTHEAD ══ -->
+<div class="masthead">
+  <div class="masthead-left">
+    ESTIN Research Power Index &nbsp;·&nbsp; Édition 2020–2026 &nbsp;·&nbsp; Score Composite v2
+    <div class="last-update" id="last-update"></div>
+  </div>
+  <div class="masthead-right">École Supérieure en Sciences et Technologies de l'Informatique et du Numérique — Bejaia</div>
+</div>
+
+<!-- ══ HEADER ══ -->
+<div class="header-band">
+  <div class="header-inner">
+    <div class="header-logo-col">
+      <div class="logo-estin">ESTIN</div>
+      <div class="logo-sub">Research</div>
+    </div>
+    <div class="header-title-col">
+      <div class="header-kicker">Classement Exclusif</div>
+      <h1 class="header-title">The ESTIN<br><em>Research Power Index</em></h1>
+      <p class="header-subtitle">Publications · Citations · h-index · i10-index — Le classement le plus complet de la recherche ESTIN</p>
+    </div>
+    <div class="header-stats-col">
+      <div class="stats-row">
+        <div><div class="h-stat-n" id="stat-pubs">—</div><div class="h-stat-l">Publications</div></div>
+        <div><div class="h-stat-n" id="stat-cherch">—</div><div class="h-stat-l">Chercheurs</div></div>
+        <div><div class="h-stat-n">4</div><div class="h-stat-l">Critères</div></div>
+        <div><div class="h-stat-n">RIS+</div><div class="h-stat-l">Score v2</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ EDITORIAL ══ -->
+<div class="editorial">
+  <div class="editorial-inner">
+    <div>
+      <div class="editorial-label">Éditorial</div>
+      <div class="editorial-pull">Mesurer ce qui compte vraiment : l'impact scientifique au cœur du projet ESTIN.</div>
+    </div>
+    <div class="editorial-body">
+      <p>Dans le monde académique, la production scientifique ne se résume plus à un simple décompte de publications. Ce qui importe, c'est l'<strong>empreinte</strong> laissée dans la communauté internationale : les articles qui sont lus, discutés, cités. C'est précisément cette ambition qui a présidé à la conception du <strong>ESTIN Research Power Index</strong>.</p>
+      <p>Pour la première fois, l'École Supérieure en Sciences et Technologies de l'Informatique et du Numérique dispose d'un outil de mesure composite qui agrège quatre dimensions complémentaires — qualité des publications, citations, h-index et i10-index — en un score unique, transparent et reproductible : le <strong>Score RIS+™</strong>.</p>
+      <p>Ce classement est <strong>mis à jour automatiquement</strong> à chaque chargement de la page, à partir des données saisies dans la feuille Google Sheets de l'institution — garantissant une photographie toujours actuelle de l'excellence scientifique à l'ESTIN.</p>
+      <div class="editorial-byline">ESTIN Research Power Index · Édition dynamique — données en temps réel</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ FORMULA BAND ══ -->
+<div class="formula-band">
+  <div class="formula-label">Score Composite RIS+™</div>
+  <div class="formula-eq">
+    <div class="f-term ris"><span class="f-pct">40%</span><span class="f-name">RIS™ Pubs</span></div>
+    <span class="f-op">+</span>
+    <div class="f-term cit"><span class="f-pct">30%</span><span class="f-name">Citations</span></div>
+    <span class="f-op">+</span>
+    <div class="f-term h"><span class="f-pct">20%</span><span class="f-name">h-index</span></div>
+    <span class="f-op">+</span>
+    <div class="f-term i10"><span class="f-pct">10%</span><span class="f-name">i10-index</span></div>
+  </div>
+  <div class="method-pills">
+    <div class="method-pill"><span class="badge">A</span>10 pts</div>
+    <div class="method-pill"><span class="badge">B</span>7 pts</div>
+    <div class="method-pill"><span class="badge">NC/Conf</span>4 pts</div>
+    <div class="method-pill"><span class="badge">BC</span>3 pts</div>
+    <div class="method-pill"><span class="badge">Pre</span>1 pt</div>
+    <div class="method-pill"><span class="badge">+20%</span>1er auteur</div>
+  </div>
+</div>
+
+<!-- ══ MAIN ══ -->
+<div class="main" id="main-content" style="display:none">
+
+  <!-- TIER 1 -->
+  <div class="tier-section">
+    <div class="section-rule">
+      <div class="tier-icon">🏆</div>
+      <div><div class="tier-name">The Elite Tier</div><div class="tier-sub">Le Sommet Absolu — Publications &amp; Impact mondial</div></div>
+      <div class="section-rule-line"></div>
+      <div class="tier-badge g" id="tier1-badge">Top 10 · Les Intouchables</div>
+    </div>
+    <div id="champion-container"></div>
+    <div class="elite-grid" id="elite-grid"></div>
+  </div>
+
+  <!-- TIER 2 -->
+  <div class="tier-section">
+    <div class="section-rule">
+      <div class="tier-icon">🌟</div>
+      <div><div class="tier-name">The High Achievers</div><div class="tier-sub">Profils solides &amp; trajectoires confirmées</div></div>
+      <div class="section-rule-line"></div>
+      <div class="tier-badge s" id="tier2-badge">Rangs 11–25</div>
+    </div>
+    <div class="achievers-grid" id="achievers-grid"></div>
+  </div>
+
+  <!-- TIER 3 -->
+  <div class="tier-section">
+    <div class="section-rule">
+      <div class="tier-icon">🚀</div>
+      <div><div class="tier-name">Mentions Honorables &amp; Rising Stars</div><div class="tier-sub">Potentiel, Dynamisme &amp; Trajectoire en construction</div></div>
+      <div class="section-rule-line"></div>
+      <div class="tier-badge b" id="tier3-badge">Rangs 26+</div>
+    </div>
+    <div class="rising-grid" id="rising-grid"></div>
+  </div>
+
+  <!-- FULL TABLE -->
+  <div class="full-table-wrap">
+    <div class="table-head-strip">
+      <div>
+        <div class="table-head-title">Tableau Complet — Score Composite RIS+™</div>
+        <div class="table-head-sub" id="table-sub">Toutes dimensions · 2020–2026</div>
+      </div>
+      <div class="legend">
+        <div class="legend-item"><div class="legend-dot" style="background:var(--ris-color)"></div>RIS™</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--cit-color)"></div>Citations</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--h-color)"></div>h-index</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--i10-color)"></div>i10</div>
+      </div>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>Rang</th><th>Chercheur</th>
+          <th class="rr">Score RIS+™</th><th class="rr">RIS™</th>
+          <th class="rr">Citations</th><th class="rc">h</th><th class="rc">i10</th>
+          <th class="rc">A</th><th class="rc">B</th><th class="rc">Total</th><th></th>
+        </tr>
+      </thead>
+      <tbody id="tbl-body"></tbody>
+    </table>
+  </div>
+
+</div><!-- /main -->
+
+<!-- ══ FOOTER ══ -->
+<div class="footer">
+  <div style="font-family:'Cormorant Garamond',serif;font-size:13px;font-weight:300;color:rgba(255,255,255,.5);line-height:1.85;">
+    <strong style="color:rgba(255,255,255,.85);font-family:'Playfair Display',serif;font-size:15px;">Méthodologie Score Composite RIS+™ v2</strong>
+    <div style="margin-top:12px;">
+      <p>Le <strong style="color:rgba(255,255,255,.7)">Score RIS+™</strong> combine quatre indicateurs normalisés (0–100) : <strong style="color:rgba(255,255,255,.65)">RIS™ Pubs (40%)</strong> — qualité des publications (A=10 pts, B=7, NC/Conf=4, BC=3, Pre=1, +20% si 1er auteur) ; <strong style="color:rgba(255,255,255,.65)">Citations Google Scholar (30%)</strong> ; <strong style="color:rgba(255,255,255,.65)">h-index (20%)</strong> ; <strong style="color:rgba(255,255,255,.65)">i10-index (10%)</strong>. Score normalisé sur 100 par rapport au meilleur profil.</p>
+      <div style="margin-top:14px;padding:12px 14px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:3px;font-size:11px;">
+        🔄 &nbsp;<strong style="color:rgba(255,255,255,.6)">Classement dynamique</strong> — Les scores sont recalculés en temps réel à chaque chargement de la page, à partir des données du Google Sheet institutionnel.
+      </div>
+    </div>
+  </div>
+  <div style="display:flex;flex-direction:column;justify-content:space-between;gap:28px;">
+    <div style="text-align:right;">
+      <div class="footer-logo">ESTIN <span>Research</span></div>
+      <div class="footer-tagline">Power Index 2020–2026 · Score Composite v2 · Données en temps réel</div>
+      <div style="margin-top:12px;font-size:11px;color:rgba(255,255,255,.35);font-family:'Cormorant Garamond',serif;font-style:italic;line-height:1.7;">
+        École Supérieure en Sciences et Technologies<br>de l'Informatique et du Numérique<br>Amizour, Bejaia — Algérie
+      </div>
+    </div>
+    <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);border-radius:4px;padding:18px 20px;text-align:right;">
+      <div style="font-size:8px;font-weight:700;letter-spacing:.35em;text-transform:uppercase;color:rgba(255,255,255,.3);margin-bottom:12px;">Source des données</div>
+      <div style="display:flex;align-items:center;justify-content:flex-end;gap:14px;margin-bottom:12px;">
+        <svg width="80" height="28" viewBox="0 0 200 60" xmlns="http://www.w3.org/2000/svg">
+          <polygon points="20,50 35,10 50,50" fill="none" stroke="#C9A84C" stroke-width="3.5" stroke-linejoin="round"/>
+          <line x1="26" y1="36" x2="44" y2="36" stroke="#C9A84C" stroke-width="2.5"/>
+          <text x="60" y="38" font-family="'DM Sans',sans-serif" font-weight="800" font-size="22" fill="rgba(255,255,255,0.85)" letter-spacing="1">ABYSOFT</text>
+        </svg>
+      </div>
+      <div style="font-family:'Cormorant Garamond',serif;font-size:13px;font-weight:300;color:rgba(255,255,255,.45);line-height:1.75;">
+        Données collectées et compilées grâce à <strong style="color:rgba(255,255,255,.65)">Valoria</strong>, solution de valorisation scientifique d'<strong style="color:rgba(255,255,255,.65)">ABYSOFT</strong> — également éditrice de <em>DETECTIA</em>, solution d'intégrité scientifique.
+      </div>
+      <a href="https://www.abysoft.dz/" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:6px;margin-top:12px;font-size:9px;font-weight:600;letter-spacing:.22em;text-transform:uppercase;color:rgba(201,168,76,.8);text-decoration:none;border:1px solid rgba(201,168,76,.25);padding:5px 12px;border-radius:2px;">
+        www.abysoft.dz &nbsp;↗
+      </a>
+    </div>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════════════
+// ⚙️  CONFIGURATION — COLLEZ ICI L'URL CSV DE VOTRE GOOGLE SHEET
+//
+// Comment obtenir l'URL :
+//   1. Ouvrir le Google Sheet
+//   2. Fichier → Partager → Publier sur le Web
+//   3. Sélectionner la feuille "📊 Données" → Format "CSV"
+//   4. Cliquer "Publier" → copier l'URL affichée
+//   5. Coller l'URL ci-dessous entre les guillemets
+//
+// L'URL ressemble à :
+// https://docs.google.com/spreadsheets/d/XXXXXXX/pub?gid=0&single=true&output=csv
+// ════════════════════════════════════════════════════════════════════
+
+const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTX2aLAWvAFa3zumLPWOwFD4TvERwwFZ08OzB0T-px-BcazQdqmA4n17Bs4lbkmI8VwExx-P9K_bvtR/pub?gid=936379390&single=true&output=csv";
+
+// ════════════════════════════════════════════════════════════════════
+// NE RIEN MODIFIER EN DESSOUS DE CETTE LIGNE
+// ════════════════════════════════════════════════════════════════════
+
+const BONUS_FIRST  = 0.20;
+const WEIGHTS      = { A: 10, B: 7, NC: 4, C: 4, '-': 2 };
+const TYPE_WEIGHTS = { 'book-chapter': 3, 'preprint': 1 };
+
+// Données de premier-auteur (statiques — issues du traitement initial)
+// Format : NOM -> [nbA_1er, nbB_1er, nbNC_1er, nbBC_1er, nbPre_1er]
+// Ces données ne changent pas souvent ; à mettre à jour manuellement si besoin
+const FIRST_AUTHOR = {
+  "TARI":1,"AZOUAOU":1,"SEBAA":2,"ELMIR":5,"AHMED NACER":2,"HADJOUT":4,
+  "BOUACH":5,"ALKAMA":5,"ZAOUCHE":0,"AMARA":0,"KHERBACHI":0,"ZENADJI":0,
+  "BOUSLA":6,"HARFOUCHE":4,"BERBAGUE":2,"MEDJOUDJ":2,"ISSAADI":3,"CHEKLAT":1,
+  "DJENADI":2,"ALLAMA":3,"AIT TALEB":3,"HAMMADOUCHE":0,"TOULOUM":3,
+  "HAFHOUF":2,"BOUREDJA":4,"DAOUDI":1,"DJABRI":1,"BOUTERNIKH":2,"KACI":3,
+  "OULEFKI":1,"BOUCHOUCHA":1,"BOUGLIMINA":0,"KHALFI":1,"BRAHMI":0,
+  "LEKEHALI":2,"BENSLIMANE":0,"YAHIAOUI":1,"AMROUNI":1,"KHALFOUNE":1,
+  "CHELOUAH":0,"GHEZZALI":0,"BEHLOUL":0,"BOUCHEFRA":0,"MEDDOURENE":0,
+  "SACI":0,"BELMAHDI":0,"MOUSSAOUI":0,"DJEDOUI":0,"CHERFAOUI":0,
+  "KHTAOUI":0,"AMIOUR":0,"AZAZGA":0,"BENZENATI":0,"HAMIDOUCHE":0,
+};
+
+// ── PARSING CSV ──────────────────────────────────────────────────────
+function parseCSV(text) {
+  const lines = text.trim().split('\n');
+  // Skip rows 1-4 (titre, instruction, groupes, en-têtes colonne), lire à partir de la ligne 5 (index 4)
+  // Chercher la ligne qui commence par un nom connu (ignorer les lignes de header)
+  const dataLines = [];
+  for (const line of lines) {
+    const cols = line.split(',').map(c => c.trim().replace(/^"|"$/g, ''));
+    if (cols[0] && cols[0] !== 'Nom' && cols[0] !== '' &&
+        !cols[0].includes('ESTIN') && !cols[0].includes('Mettez') &&
+        !cols[0].includes('IDENTIT') && !cols[0].includes('NOM') &&
+        !cols[0].includes('GOOGLE') && !cols[0].includes('PUBL') &&
+        !cols[0].includes('SCORES')) {
+      dataLines.push(cols);
+    }
+  }
+  return dataLines;
+}
+
+// ── CALCUL RIS™ ──────────────────────────────────────────────────────
+function computeRIS(a, b, nc, bc, pre, firstCount) {
+  const base = a*10 + b*7 + nc*4 + bc*3 + pre*1;
+  const bonus = firstCount * (10 * BONUS_FIRST); // approximation : bonus sur pubs A du premier auteur
+  return base + bonus * 0.5; // bonus moyen
+}
+
+// ── CONSTRUCTION DES DONNÉES ──────────────────────────────────────────
+function buildData(rows) {
+  const raw = rows.map(cols => {
+    const name = (cols[0] || '').trim().toUpperCase();
+    const cit  = parseInt(cols[2]) || 0;
+    const h    = parseInt(cols[3]) || 0;
+    const i10  = parseInt(cols[4]) || 0;
+    const a    = parseInt(cols[5]) || 0;
+    const b    = parseInt(cols[6]) || 0;
+    const nc   = parseInt(cols[7]) || 0;
+    const bc   = parseInt(cols[8]) || 0;
+    const pre  = parseInt(cols[9]) || 0;
+    const total = a + b + nc + bc + pre;
+    const first = FIRST_AUTHOR[name] || 0;
+    const ris   = computeRIS(a, b, nc, bc, pre, first);
+    return { name, cit, h, i10, a, b, nc, bc, pre, total, first, ris };
+  }).filter(d => d.name);
+
+  const maxRIS = Math.max(...raw.map(d => d.ris), 1);
+  const maxCit = Math.max(...raw.map(d => d.cit), 1);
+  const maxH   = Math.max(...raw.map(d => d.h), 1);
+  const maxI10 = Math.max(...raw.map(d => d.i10), 1);
+
+  const scored = raw.map(d => {
+    const composite =
+      (d.ris / maxRIS) * 100 * 0.40 +
+      (d.cit / maxCit) * 100 * 0.30 +
+      (d.h   / maxH)   * 100 * 0.20 +
+      (d.i10 / maxI10) * 100 * 0.10;
+    return { ...d, composite };
+  });
+
+  scored.sort((a, b) => b.composite - a.composite);
+  const maxComp = scored[0]?.composite || 1;
+  scored.forEach((d, i) => {
+    d.composite = Math.round((d.composite / maxComp) * 10000) / 100;
+    d.rank = i + 1;
+  });
+  return scored;
+}
+
+// ── RENDU HTML ───────────────────────────────────────────────────────
+const medals = { 1: '🥇', 2: '🥈', 3: '🥉' };
+
+function chipHTML(val, cls, label) {
+  return val > 0 ? `<span class="chip ${cls}">${val}${label}</span>` : '';
+}
+
+function scholarHTML(cit, h, i10) {
+  return `
+    <div class="e-scholar">
+      <div><span class="e-sv cit">${cit||'—'}</span><br><span class="e-sl">Citations</span></div>
+      <div><span class="e-sv h">${h||'—'}</span><br><span class="e-sl">h-index</span></div>
+      <div><span class="e-sv i10">${i10||'—'}</span><br><span class="e-sl">i10</span></div>
+    </div>`;
+}
+
+function renderChampion(d) {
+  return `
+  <div class="champion">
+    <div class="champ-rank">#1</div>
+    <div>
+      <div class="champ-name">${d.name}</div>
+      <div class="champ-tagline">Champion absolu · ${d.total} publications · h=${d.h} · ${d.cit.toLocaleString()} citations</div>
+      <div class="pub-chips">
+        ${chipHTML(d.a,'a','× Classe A')}
+        ${chipHTML(d.b,'b','× Classe B')}
+        ${chipHTML(d.nc,'nc','× NC/Conf.')}
+        ${chipHTML(d.bc,'bc','× BC')}
+      </div>
+      <div class="scholar-bar">
+        <div class="s-stat"><span class="s-val cit">${d.cit.toLocaleString()}</span><span class="s-lbl">Citations</span></div>
+        <div class="s-stat"><span class="s-val h">${d.h}</span><span class="s-lbl">h-index</span></div>
+        <div class="s-stat"><span class="s-val i10">${d.i10}</span><span class="s-lbl">i10-index</span></div>
+      </div>
+    </div>
+    <div class="score-block">
+      <div class="score-label">Score Composite RIS+™</div>
+      <div class="score-composite">100</div>
+      <div class="score-unit">/ 100 points</div>
+      <div class="score-ris">RIS™ brut : ${d.ris.toFixed(1)} pts</div>
+      <div class="total-badge">${d.total} publications · 1er rang toutes catégories</div>
+    </div>
+  </div>`;
+}
+
+function renderElite(d) {
+  return `
+  <div class="elite-card">
+    <div class="e-rank">#${d.rank}</div>
+    <div>
+      <div class="e-name">${d.name}</div>
+      <div class="e-chips">
+        ${chipHTML(d.a,'a',`A`)}${chipHTML(d.b,'b',`B`)}
+        ${chipHTML(d.nc,'nc','NC')}${chipHTML(d.bc,'bc','BC')}
+      </div>
+      ${scholarHTML(d.cit, d.h, d.i10)}
+    </div>
+    <div class="e-score-block">
+      <div class="e-composite">${d.composite.toFixed(2)}</div>
+      <div class="e-composite-sub">/ 100 RIS+™</div>
+      <div class="e-ris">RIS™ ${d.ris.toFixed(1)} · ${d.total} pubs</div>
+    </div>
+  </div>`;
+}
+
+function renderAchiever(d) {
+  return `
+  <div class="achiever-card">
+    <div class="ac-rank">#${d.rank}</div>
+    <div>
+      <div class="ac-name">${d.name}</div>
+      <div class="ac-detail">${d.total} pubs · ${d.a}A · ${d.b}B · Cit:${d.cit} · h:${d.h}</div>
+    </div>
+    <div>
+      <div class="ac-score">${d.composite.toFixed(2)}</div>
+      <div class="ac-score-sub">RIS+™</div>
+    </div>
+  </div>`;
+}
+
+function renderRising(d) {
+  return `
+  <div class="rising-card">
+    <div class="r-rank">#${d.rank}</div>
+    <div class="r-info">
+      <div class="r-name">${d.name}</div>
+      <div class="r-detail">${d.total > 0 ? `${d.total} pub${d.total>1?'s':''} · Cit:${d.cit} · h:${d.h}` : 'Aucune publication répertoriée'}</div>
+    </div>
+    <div class="r-score">${d.composite > 0 ? d.composite.toFixed(2) : '—'}</div>
+  </div>`;
+}
+
+function renderTableRow(d) {
+  const pct = Math.round(d.composite);
+  const med = medals[d.rank] ? `<span class="medal">${medals[d.rank]}</span>` : '';
+  const tc  = d.rank<=10?'t1':d.rank<=25?'t2':d.rank<=39?'t3':'t4';
+  return `<tr>
+    <td class="td-rank">${med}${d.rank}</td>
+    <td class="td-name"><span class="tier-dot ${tc}"></span>${d.name}</td>
+    <td class="td-composite">${d.composite.toFixed(2)}</td>
+    <td class="td-ris">${d.ris>0?d.ris.toFixed(1):'—'}</td>
+    <td class="td-cit">${d.cit>0?d.cit.toLocaleString():'—'}</td>
+    <td class="td-h">${d.h>0?d.h:'—'}</td>
+    <td class="td-i10">${d.i10>0?d.i10:'—'}</td>
+    <td class="td-a">${d.a>0?d.a:'—'}</td>
+    <td class="rc" style="color:var(--tier2);font-weight:600">${d.b>0?d.b:'—'}</td>
+    <td class="td-pubs">${d.total>0?d.total:'—'}</td>
+    <td class="bar-cell"><div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div></td>
+  </tr>`;
+}
+
+function setProgress(pct, msg) {
+  document.getElementById('loader-bar').style.width = pct + '%';
+  document.getElementById('loader-msg').textContent = msg;
+}
+
+function renderAll(data) {
+  const N = data.length;
+  const tier1End = Math.min(10, N);
+  const tier2End = Math.min(25, N);
+
+  // Stats header
+  const totalPubs = data.reduce((s,d) => s + d.total, 0);
+  document.getElementById('stat-pubs').textContent = totalPubs;
+  document.getElementById('stat-cherch').textContent = N;
+  document.getElementById('table-sub').textContent =
+    `Toutes dimensions · 2020–2026 · ${N} chercheurs évalués`;
+
+  // Badges
+  document.getElementById('tier1-badge').textContent = `Top ${tier1End} · Les Intouchables`;
+  document.getElementById('tier2-badge').textContent = `Rangs ${tier1End+1}–${tier2End}`;
+  document.getElementById('tier3-badge').textContent = `Rangs ${tier2End+1}–${N}`;
+
+  // Champion
+  document.getElementById('champion-container').innerHTML = renderChampion(data[0]);
+
+  // Elite (rangs 2–10)
+  document.getElementById('elite-grid').innerHTML =
+    data.slice(1, tier1End).map(renderElite).join('');
+
+  // Achievers (rangs 11–25)
+  document.getElementById('achievers-grid').innerHTML =
+    data.slice(tier1End, tier2End).map(renderAchiever).join('');
+
+  // Rising (rangs 26+)
+  document.getElementById('rising-grid').innerHTML =
+    data.slice(tier2End).map(renderRising).join('');
+
+  // Full table
+  document.getElementById('tbl-body').innerHTML =
+    data.map(renderTableRow).join('');
+
+  // Last update
+  document.getElementById('last-update').textContent =
+    'Données chargées le ' + new Date().toLocaleDateString('fr-FR', {day:'2-digit',month:'long',year:'numeric'});
+
+  // Show content
+  document.getElementById('main-content').style.display = '';
+}
+
+// ── MAIN FETCH ───────────────────────────────────────────────────────
+async function loadAndRender() {
+  // Check config
+  if (!SHEET_CSV_URL || SHEET_CSV_URL === 'COLLER_ICI_LURL_CSV_DU_GOOGLE_SHEET') {
+    document.getElementById('config-banner').style.display = 'block';
+    setProgress(100, 'Configuration requise');
+    setTimeout(() => {
+      document.getElementById('loading-screen').classList.add('hidden');
+    }, 800);
+    return;
+  }
+
+  try {
+    setProgress(20, 'Connexion au Google Sheet…');
+    const resp = await fetch(SHEET_CSV_URL);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+
+    setProgress(55, 'Lecture des données…');
+    const text = await resp.text();
+
+    setProgress(75, 'Calcul des scores RIS+™…');
+    const rows = parseCSV(text);
+    if (rows.length === 0) throw new Error('Aucune donnée trouvée dans le Sheet');
+    const data = buildData(rows);
+
+    setProgress(95, 'Rendu du classement…');
+    renderAll(data);
+
+    setProgress(100, 'Classement mis à jour !');
+    setTimeout(() => {
+      document.getElementById('loading-screen').classList.add('hidden');
+    }, 600);
+
+  } catch (err) {
+    console.error('Erreur chargement Sheet:', err);
+    document.getElementById('error-banner').style.display = 'block';
+    document.getElementById('error-banner').innerHTML +=
+      ` <small>(${err.message})</small>`;
+    setProgress(100, 'Erreur de chargement');
+    setTimeout(() => {
+      document.getElementById('loading-screen').classList.add('hidden');
+    }, 800);
+  }
+}
+
+document.addEventListener('DOMContentLoaded', loadAndRender);
+</script>
+</body>
+</html>
