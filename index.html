@@ -429,7 +429,7 @@ tbody td{padding:10px 14px;font-size:11px;color:var(--text-primary);vertical-ali
 // https://docs.google.com/spreadsheets/d/XXXXXXX/pub?gid=0&single=true&output=csv
 // ════════════════════════════════════════════════════════════════════
 
-const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTX2aLAWvAFa3zumLPWOwFD4TvERwwFZ08OzB0T-px-BcazQdqmA4n17Bs4lbkmI8VwExx-P9K_bvtR/pub?gid=936379390&single=true&output=csv";
+const SHEET_CSV_URL = "COLLER_ICI_LURL_CSV_DU_GOOGLE_SHEET";
 
 // ════════════════════════════════════════════════════════════════════
 // NE RIEN MODIFIER EN DESSOUS DE CETTE LIGNE
@@ -457,19 +457,23 @@ const FIRST_AUTHOR = {
 
 // ── PARSING CSV ──────────────────────────────────────────────────────
 function parseCSV(text) {
+  // Liste officielle des 54 enseignants ESTIN — seules ces lignes sont retenues
+  const WHITELIST = new Set([
+    "TARI","AZOUAOU","SEBAA","ELMIR","AHMED NACER","HADJOUT","BOUACH","ALKAMA",
+    "ZAOUCHE","AMARA","KHERBACHI","ZENADJI","BOUSLA","HARFOUCHE","BERBAGUE",
+    "MEDJOUDJ","ISSAADI","CHEKLAT","DJENADI","ALLAMA","AIT TALEB","HAMMADOUCHE",
+    "TOULOUM","HAFHOUF","BOUREDJA","DAOUDI","DJABRI","BOUTERNIKH","KACI",
+    "OULEFKI","BOUCHOUCHA","BOUGLIMINA","KHALFI","BRAHMI","LEKEHALI","BENSLIMANE",
+    "YAHIAOUI","AMROUNI","KHALFOUNE","CHELOUAH","GHEZZALI","BEHLOUL","BOUCHEFRA",
+    "MEDDOURENE","SACI","BELMAHDI","MOUSSAOUI","DJEDOUI","CHERFAOUI","KHTAOUI",
+    "AMIOUR","AZAZGA","BENZENATI","HAMIDOUCHE"
+  ]);
   const lines = text.trim().split('\n');
-  // Skip rows 1-4 (titre, instruction, groupes, en-têtes colonne), lire à partir de la ligne 5 (index 4)
-  // Chercher la ligne qui commence par un nom connu (ignorer les lignes de header)
   const dataLines = [];
   for (const line of lines) {
     const cols = line.split(',').map(c => c.trim().replace(/^"|"$/g, ''));
-    if (cols[0] && cols[0] !== 'Nom' && cols[0] !== '' &&
-        !cols[0].includes('ESTIN') && !cols[0].includes('Mettez') &&
-        !cols[0].includes('IDENTIT') && !cols[0].includes('NOM') &&
-        !cols[0].includes('GOOGLE') && !cols[0].includes('PUBL') &&
-        !cols[0].includes('SCORES')) {
-      dataLines.push(cols);
-    }
+    const col0 = (cols[0] || '').trim().toUpperCase();
+    if (WHITELIST.has(col0)) dataLines.push(cols);
   }
   return dataLines;
 }
@@ -682,48 +686,130 @@ function renderAll(data) {
   document.getElementById('main-content').style.display = '';
 }
 
-// ── MAIN FETCH ───────────────────────────────────────────────────────
+// ── FETCH AVEC GESTION CORS ───────────────────────────────────────────
+// Google Sheets bloque les requêtes directes (CORS).
+// On essaie plusieurs stratégies en cascade jusqu'à ce qu'une fonctionne.
+
+// Extrait le Sheet ID et le GID depuis une URL Google Sheets pub CSV
+function parseSheetURL(url) {
+  // Format : https://docs.google.com/spreadsheets/d/SHEET_ID/pub?gid=GID&...
+  const idMatch  = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
+  const gidMatch = url.match(/[?&]gid=([0-9]+)/);
+  return {
+    id:  idMatch  ? idMatch[1]  : null,
+    gid: gidMatch ? gidMatch[1] : '0',
+  };
+}
+
+// Tente un fetch, renvoie le texte ou lève une erreur
+async function tryFetch(url, timeout = 8000) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeout);
+  try {
+    const r = await fetch(url, { signal: ctrl.signal });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    return await r.text();
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// Construit les URLs alternatives à essayer, dans l'ordre
+function buildCandidates(rawUrl) {
+  const { id, gid } = parseSheetURL(rawUrl);
+  const candidates = [];
+
+  // 1. URL directe (fonctionne si hébergé sur Vercel avec headers CORS ouverts)
+  candidates.push(rawUrl);
+
+  if (id) {
+    // 2. Export CSV direct Google (parfois accessible selon config)
+    candidates.push(
+      `https://docs.google.com/spreadsheets/d/${id}/export?format=csv&gid=${gid}`
+    );
+
+    // 3. Proxy allorigins.win (CORS proxy public fiable)
+    const encoded = encodeURIComponent(
+      `https://docs.google.com/spreadsheets/d/${id}/export?format=csv&gid=${gid}`
+    );
+    candidates.push(`https://api.allorigins.win/raw?url=${encoded}`);
+
+    // 4. Proxy corsproxy.io
+    candidates.push(
+      `https://corsproxy.io/?https://docs.google.com/spreadsheets/d/${id}/export?format=csv&gid=${gid}`
+    );
+
+    // 5. Proxy thingproxy
+    candidates.push(
+      `https://thingproxy.freeboard.io/fetch/https://docs.google.com/spreadsheets/d/${id}/export?format=csv&gid=${gid}`
+    );
+  }
+
+  return candidates;
+}
+
+// Essaie chaque candidat jusqu'au premier succès
+async function fetchWithFallback(rawUrl) {
+  const candidates = buildCandidates(rawUrl);
+  const errors = [];
+
+  for (let i = 0; i < candidates.length; i++) {
+    const url = candidates[i];
+    const label = i === 0 ? 'connexion directe' :
+                  i === 1 ? 'export Google' :
+                  `proxy ${i - 1}`;
+    try {
+      setProgress(20 + i * 8, `Tentative via ${label}…`);
+      const text = await tryFetch(url);
+      // Vérifier que c'est bien du CSV (pas une page d'erreur HTML)
+      if (text.trim().startsWith('<')) {
+        throw new Error('Réponse HTML reçue, pas du CSV');
+      }
+      console.log(`✓ Succès via : ${label}`);
+      return text;
+    } catch (err) {
+      console.warn(`✗ Échec (${label}):`, err.message);
+      errors.push(`${label}: ${err.message}`);
+    }
+  }
+
+  throw new Error('Toutes les tentatives ont échoué.\n' + errors.join('\n'));
+}
+
+// ── MAIN ─────────────────────────────────────────────────────────────
 async function loadAndRender() {
-  // Check config
   if (!SHEET_CSV_URL || SHEET_CSV_URL === 'COLLER_ICI_LURL_CSV_DU_GOOGLE_SHEET') {
     document.getElementById('config-banner').style.display = 'block';
     setProgress(100, 'Configuration requise');
-    setTimeout(() => {
-      document.getElementById('loading-screen').classList.add('hidden');
-    }, 800);
+    setTimeout(() => document.getElementById('loading-screen').classList.add('hidden'), 800);
     return;
   }
 
   try {
-    setProgress(20, 'Connexion au Google Sheet…');
-    const resp = await fetch(SHEET_CSV_URL);
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-
-    setProgress(55, 'Lecture des données…');
-    const text = await resp.text();
+    setProgress(10, 'Initialisation…');
+    const text = await fetchWithFallback(SHEET_CSV_URL);
 
     setProgress(75, 'Calcul des scores RIS+™…');
     const rows = parseCSV(text);
-    if (rows.length === 0) throw new Error('Aucune donnée trouvée dans le Sheet');
+    if (rows.length === 0) throw new Error('Aucune donnée valide dans le Sheet');
     const data = buildData(rows);
 
     setProgress(95, 'Rendu du classement…');
     renderAll(data);
 
     setProgress(100, 'Classement mis à jour !');
-    setTimeout(() => {
-      document.getElementById('loading-screen').classList.add('hidden');
-    }, 600);
+    setTimeout(() => document.getElementById('loading-screen').classList.add('hidden'), 600);
 
   } catch (err) {
-    console.error('Erreur chargement Sheet:', err);
-    document.getElementById('error-banner').style.display = 'block';
-    document.getElementById('error-banner').innerHTML +=
-      ` <small>(${err.message})</small>`;
-    setProgress(100, 'Erreur de chargement');
-    setTimeout(() => {
-      document.getElementById('loading-screen').classList.add('hidden');
-    }, 800);
+    console.error('Erreur finale :', err);
+    const banner = document.getElementById('error-banner');
+    banner.style.display = 'block';
+    banner.innerHTML = `⚠️ &nbsp;Impossible de charger les données depuis Google Sheets.
+      <a href="#" onclick="location.reload()">Réessayer</a><br>
+      <small style="opacity:.7">${err.message.split('\n')[0]}</small>
+      <br><small style="opacity:.5">Vérifiez que le Sheet est publié : Fichier → Partager → Publier sur le web → CSV</small>`;
+    setProgress(100, 'Échec du chargement');
+    setTimeout(() => document.getElementById('loading-screen').classList.add('hidden'), 800);
   }
 }
 
